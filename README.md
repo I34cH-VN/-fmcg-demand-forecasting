@@ -1,19 +1,23 @@
-# FMCG Demand Forecasting
+# FMCG Demand Forecasting & Warehouse Volume Planning
 
-This project builds an end-to-end demand forecasting workflow for three years of FMCG shipment data from a manufacturing context. It cleans raw sales files, aggregates demand weekly, engineers time-series features, trains LightGBM models, evaluates forecast accuracy, and provides a Streamlit dashboard for business exploration.
+Industry-style portfolio project for weekly FMCG demand forecasting and warehouse/logistics volume planning. The project uses shipment history to forecast both quantity and CBM so supply chain planners can identify high-demand weeks, warehouse load, and forecast accuracy by business segment.
 
-## Business Goal
+## Business Problem
 
-Forecast weekly sales demand and warehouse volume so planners can understand:
+FMCG manufacturers need weekly visibility into demand and warehouse volume to plan labor, storage, transport capacity, and peak-season execution. This project forecasts:
 
-- Which categories and brands drive shipment volume.
-- How demand changes by month and season.
-- How well a LightGBM model predicts future quantity and CBM.
-- Which weeks may require higher warehouse or transportation capacity.
+- `total_qty`: weekly shipment quantity.
+- `total_cbm`: weekly warehouse/logistics volume.
 
-## Dataset
+The dashboard turns model output into a planning view: forecast QTY, forecast CBM, peak week, forecast bias, WMAPE by brand, CBM by warehouse, and weekly forecast plan.
 
-Raw CSV files are stored locally in `data/raw/` and contain:
+## Dashboard Preview
+
+![Dashboard preview](docs/images/dashboard_overview.png)
+
+## Dataset Fields
+
+Raw CSV files are expected in `data/raw/` and contain:
 
 - `ACTUALSHIPDATE`: shipment date.
 - `CATEGORY`: product category.
@@ -21,54 +25,110 @@ Raw CSV files are stored locally in `data/raw/` and contain:
 - `BRAND`: product brand.
 - `Total QTY`: shipped quantity.
 - `Total CBM`: shipment volume.
-- `Week`, `Day`: calendar fields from the source data.
+- `Week`, `Day`: optional calendar fields from the source system.
 
-## Project Structure
+Raw data, processed data, models, and report outputs are excluded from Git to avoid exposing private business data.
+
+A small synthetic sample is included at `data/sample/synthetic_sales.csv` for structure reference only. It is not used to claim model performance.
+
+## Architecture Diagram
+
+```mermaid
+flowchart LR
+    A["Raw shipment CSVs"] --> B["Preprocess and validation"]
+    B --> C["Monday-start weekly demand"]
+    C --> D["Calendar, holiday, lag and rolling features"]
+    D --> E["LightGBM QTY model"]
+    D --> F["LightGBM CBM model"]
+    E --> G["Predictions and metrics"]
+    F --> G
+    G --> H["Streamlit planning dashboard"]
+```
+
+## Dashboard Features
+
+- Forecast QTY and CBM KPI cards.
+- Forecast bias and WMAPE warning.
+- CBM peak alert with configurable weekly capacity threshold.
+- High-uncertainty brand segments based on WMAPE.
+- Actual vs forecast chart, CBM by warehouse, and weekly forecast plan.
+
+## Project Architecture
 
 ```text
 demand_forecast/
-├── app/
-│   └── dashboard.py
-├── data/
-│   ├── raw/
-│   └── processed/
-├── models/
-├── notebooks/
-├── reports/
-│   └── figures/
-├── src/
-│   ├── features.py
-│   ├── make_figures.py
-│   ├── preprocess.py
-│   └── train_model.py
-├── README.md
-├── requirements.txt
-└── .gitignore
+|-- app/
+|   |-- dashboard.py
+|   `-- dashboard_utils.py
+|-- data/
+|   |-- raw/
+|   `-- processed/
+|-- models/
+|-- reports/
+|   `-- figures/
+|-- src/
+|   |-- evaluate.py
+|   |-- features.py
+|   |-- holidays.py
+|   |-- make_figures.py
+|   |-- preprocess.py
+|   |-- train_model.py
+|   `-- validation.py
+|-- tests/
+|   `-- test_pipeline.py
+|-- config.yaml
+|-- requirements.txt
+`-- README.md
 ```
 
 ## Methodology
 
-1. Combine yearly CSV files into one dataset.
-2. Clean dates, numeric fields, categories, brands, and warehouse IDs.
-3. Aggregate daily shipment rows into weekly demand by `category + brand + whseid`.
-4. Create calendar, Tet-season, lag, rolling mean, difference, and percentage-change features.
-5. Train LightGBM regression models for:
-   - `total_qty`
-   - `total_cbm`
-6. Evaluate on a time-based split:
-   - Train: 2023-2024
-   - Test: 2025
-7. Visualize historical demand, actual vs predicted demand, and model metrics in Streamlit.
+1. Load yearly CSV files from `data/raw/`.
+2. Validate required columns and date parsability.
+3. Clean shipment date, category, brand, warehouse, QTY, and CBM fields.
+4. Drop rows with missing critical values and remove duplicate business-key rows.
+5. Aggregate daily shipments into Monday-start weekly series by `category + brand + whseid`.
+6. Create leakage-safe calendar, Vietnam holiday, lag, rolling mean, lag-diff, and lag-pct-change features.
+7. Train LightGBM global regression models for `total_qty` and `total_cbm`.
+8. Evaluate on a time-based holdout and walk-forward validation.
+9. Publish metrics, segment breakdowns, predictions, models, and Streamlit dashboard.
+
+## Forecast Horizon
+
+The current model is a **one-week-ahead forecast**. Lag and rolling features use actual historical values available before the forecast week. It is not yet a recursive multi-week forecast engine.
+
+## Leakage Handling
+
+The original leakage-prone current-period features were removed:
+
+- `total_qty_diff_1`
+- `total_qty_pct_change_1`
+
+The replacement features are shifted into the past:
+
+- `total_qty_lag_diff_1 = lag_1 - lag_2`
+- `total_qty_lag_pct_change_1 = (lag_1 - lag_2) / lag_2`
+
+The same logic is applied to `total_cbm`. This prevents the model from reconstructing the current target from current-period differences.
+
+## Validation Strategy
+
+- Time-based test split: configured in `config.yaml` with `test_start_date`.
+- Walk-forward validation: simple rolling cutoffs on the training period.
+- Segment metrics are generated by brand, category, warehouse, and peak/non-peak season.
+
+## Metrics
+
+The pipeline reports:
+
+- MAE
+- RMSE
+- WMAPE
+- Forecast Bias: `(predicted_sum - actual_sum) / actual_sum`
+
+WMAPE and bias are emphasized because they are interpretable for supply chain planning.
 
 ## How to Run
-
-Place the source CSV files in `data/raw/`:
-
-```text
-data/raw/data_2023.csv
-data/raw/data_2024.csv
-data/raw/data_2025.csv
-```
 
 Install dependencies:
 
@@ -82,7 +142,7 @@ Run preprocessing:
 python src/preprocess.py
 ```
 
-Train LightGBM models:
+Train and evaluate models:
 
 ```powershell
 python src/train_model.py
@@ -94,25 +154,45 @@ Generate report figures:
 python src/make_figures.py
 ```
 
-Start the dashboard:
+Run tests:
+
+```powershell
+python -m pytest -q -p no:cacheprovider
+```
+
+Start dashboard:
 
 ```powershell
 streamlit run app/dashboard.py
 ```
 
-## Outputs
-
-Generated files:
+## Main Outputs
 
 - `data/processed/sales_cleaned.csv`
 - `data/processed/weekly_sales.csv`
+- `data/processed/model_frame_total_qty.csv`
+- `data/processed/model_frame_total_cbm.csv`
 - `data/processed/predictions_total_qty.csv`
 - `data/processed/predictions_total_cbm.csv`
 - `models/lightgbm_total_qty.pkl`
 - `models/lightgbm_total_cbm.pkl`
 - `reports/metrics.json`
-- `reports/figures/*.html`
+- `reports/metrics_*_by_*.csv`
+- `reports/walk_forward_*.csv`
 
-## Portfolio Summary
+## Limitations
 
-Built an end-to-end FMCG demand forecasting project using three years of sales shipment data. The workflow includes data cleaning, exploratory analysis, time-series feature engineering, LightGBM forecasting, model evaluation, and an interactive Streamlit dashboard for quantity and warehouse volume planning.
+- This is an industry-style portfolio project, not a full production enterprise system.
+- The forecast is one-week-ahead, not full multi-week capacity simulation.
+- Holiday dates are manually maintained for 2023-2025.
+- The model does not include price, promotion, stockout, customer/channel, SKU-level hierarchy, or warehouse capacity constraints.
+- There is no orchestration layer, model registry, drift monitoring, or automated retraining yet.
+
+## Next Improvements
+
+- Add recursive/direct multi-horizon forecasting.
+- Add promotion, price, stockout, and customer/channel features.
+- Add data quality reports with Pandera or Great Expectations.
+- Add MLflow or another model registry.
+- Add capacity thresholds and overload alerts in the dashboard.
+- Add scheduled retraining with Airflow or Prefect.

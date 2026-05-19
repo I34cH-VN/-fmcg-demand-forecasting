@@ -1,0 +1,31 @@
+paths:
+  raw_data: data/raw
+  processed_data: data/processed
+  models: models
+  reports: reports
+
+columns:
+  date: ship_date
+  week_start: week_start
+  id_columns:
+    - category
+    - brand
+    - whseid
+  target_columns:
+    - total_qty
+    - total_cbm
+
+validation:
+  test_start_date: "2025-01-01"
+  forecast_horizon_weeks: 1
+  walk_forward_folds: 4
+
+model:
+  objective: regression
+  n_estimators: 450
+  learning_rate: 0.04
+  num_leaves: 31
+  subsample: 0.9
+  colsample_bytree: 0.9
+  random_state: 42
+  verbosity: -1

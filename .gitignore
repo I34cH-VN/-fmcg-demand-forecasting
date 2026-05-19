@@ -10,6 +10,7 @@ data/processed/*.csv
 data/raw/*.csv
 models/*.pkl
 reports/*.json
+reports/*.csv
 reports/figures/*.html
 
 .DS_Store
