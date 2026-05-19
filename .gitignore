@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.venv/
+venv/
+env/
+.env
+
+data/processed/*.csv
+data/raw/*.csv
+models/*.pkl
+reports/*.json
+reports/figures/*.html
+
+.DS_Store
+Thumbs.db
