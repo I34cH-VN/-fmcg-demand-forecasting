@@ -29,5 +29,10 @@ jobs:
       - name: Run demo workflow
         run: python scripts/run_demo.py
 
+      - name: Compile source code
+        run: python -m compileall src
+
       - name: Validate Docker Compose config
         run: docker compose config --quiet
+
+
