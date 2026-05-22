@@ -5,6 +5,7 @@ from pathlib import Path
 
 from src.agent.forecasting_agent import ForecastingAgent
 from src.cli import _load_analysis_frame
+from src.models.inference import predict_weekly_forecast
 from src.models.forecasting_pipeline import run_training_pipeline
 from src.utils.config import ROOT_DIR, get_nested, load_config, resolve_project_path
 
@@ -45,3 +46,8 @@ def run_report_workflow(config_path: str) -> dict:
         metrics,
     )
     return {"data_quality_json": {"dataset": dataset_summary, "quality": quality_report}, "metrics_json": metrics, "report_path": str(report_path)}
+
+
+def run_predict_workflow(config_path: str, history: list[dict], forecasts: list[dict]) -> dict:
+    config = load_config(config_path)
+    return predict_weekly_forecast(history, forecasts, config)

@@ -5,6 +5,7 @@ from sqlalchemy.pool import StaticPool
 from sqlalchemy.orm import sessionmaker
 from fastapi.testclient import TestClient
 
+from src.models import inference
 from src.api.app import create_app
 from src.api.routes import get_session
 from src.api import services
@@ -95,3 +96,96 @@ def test_api_analyze_train_report_with_mocked_workflows(monkeypatch):
     assert len(runs_response.json()) == 3
     assert latest_response.status_code == 200
     assert latest_response.json()["metrics_json"][0]["wmape"] == 0.1
+
+
+class DummyModel:
+    def __init__(self, value: float) -> None:
+        self.value = value
+
+    def predict(self, frame):
+        return [self.value] * len(frame)
+
+
+def _predict_config(models_path="models"):
+    return {
+        "paths": {"models": models_path},
+        "columns": {"target_columns": ["total_qty", "total_cbm"]},
+        "validation": {"forecast_horizon_weeks": 1},
+        "features": {"lag_weeks": [1, 2], "rolling_windows": [2]},
+    }
+
+
+def _predict_payload(config_path):
+    return {
+        "config_path": str(config_path),
+        "history": [
+            {
+                "week_start": f"2025-01-{day:02d}",
+                "category": "bev",
+                "brand": "alpha",
+                "whseid": "hcm",
+                "total_qty": 100 + index,
+                "total_cbm": 10 + index,
+            }
+            for index, day in enumerate([6, 13, 20, 27])
+        ],
+        "forecasts": [
+            {
+                "week_start": "2025-02-03",
+                "category": "bev",
+                "brand": "alpha",
+                "whseid": "hcm",
+            }
+        ],
+    }
+
+
+def test_api_predict_loads_models_and_returns_forecast(monkeypatch):
+    client = make_client(make_test_session_factory())
+
+    def fake_load_model(config, target_col):
+        if target_col == "total_qty":
+            return DummyModel(123.4)
+        return DummyModel(12.3)
+
+    monkeypatch.setattr(services, "load_config", lambda config_path: _predict_config())
+    monkeypatch.setattr(inference, "_load_model", fake_load_model)
+
+    response = client.post("/predict", json=_predict_payload("configs/default.yaml"))
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["forecast_horizon_weeks"] == 1
+    assert payload["forecasts"][0]["week_start"] == "2025-02-03"
+    assert payload["forecasts"][0]["category"] == "BEV"
+    assert payload["forecasts"][0]["predicted_total_qty"] == 123.4
+    assert payload["forecasts"][0]["predicted_total_cbm"] == 12.3
+
+
+def test_api_predict_validates_input_schema():
+    client = make_client(make_test_session_factory())
+    payload = _predict_payload("configs/default.yaml")
+    payload["history"][0]["total_qty"] = -1
+
+    response = client.post("/predict", json=payload)
+
+    assert response.status_code == 422
+
+    payload = _predict_payload("configs/default.yaml")
+    payload["forecasts"][0]["week_start"] = "not-a-date"
+
+    response = client.post("/predict", json=payload)
+
+    assert response.status_code == 422
+
+
+def test_api_predict_returns_404_when_model_is_missing(monkeypatch):
+    client = make_client(make_test_session_factory())
+    config = _predict_config(models_path="missing-models")
+    config["columns"]["target_columns"] = ["total_qty"]
+    monkeypatch.setattr(services, "load_config", lambda config_path: config)
+
+    response = client.post("/predict", json=_predict_payload("configs/default.yaml"))
+
+    assert response.status_code == 404
+    assert "Model file not found" in response.json()["detail"]

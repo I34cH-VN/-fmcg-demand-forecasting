@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from src.api import services
@@ -19,12 +20,40 @@ class RunRequest(BaseModel):
     config_path: str = DEFAULT_CONFIG_PATH
 
 
+class WeeklyObservation(BaseModel):
+    week_start: date
+    category: str
+    brand: str
+    whseid: str
+    total_qty: float = Field(ge=0)
+    total_cbm: float = Field(ge=0)
+
+
+class ForecastRequestRow(BaseModel):
+    week_start: date
+    category: str
+    brand: str
+    whseid: str
+
+
+class PredictRequest(BaseModel):
+    config_path: str = DEFAULT_CONFIG_PATH
+    history: list[WeeklyObservation] = Field(min_length=1)
+    forecasts: list[ForecastRequestRow] = Field(min_length=1)
+
+
 router = APIRouter()
 
 
 @router.get("/health")
 def health() -> dict:
     return {"status": "ok"}
+
+
+def _dump_model(model: BaseModel) -> dict:
+    if hasattr(model, "model_dump"):
+        return model.model_dump()
+    return model.dict()
 
 
 def _execute_run(session: Session, run_type: str, config_path: str) -> dict:
@@ -65,6 +94,20 @@ def train_run(request: RunRequest, session: Annotated[Session, Depends(get_sessi
 @router.post("/runs/report")
 def report_run(request: RunRequest, session: Annotated[Session, Depends(get_session)]) -> dict:
     return _execute_run(session, "report", request.config_path)
+
+
+@router.post("/predict")
+def predict(request: PredictRequest) -> dict:
+    try:
+        return services.run_predict_workflow(
+            request.config_path,
+            [_dump_model(row) for row in request.history],
+            [_dump_model(row) for row in request.forecasts],
+        )
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.get("/runs")
