@@ -1,5 +1,7 @@
 # AI Data Analyst / Demand Forecasting Agent
 
+[![CI](https://github.com/I34cH-VN/-fmcg-demand-forecasting/actions/workflows/ci.yml/badge.svg)](https://github.com/I34cH-VN/-fmcg-demand-forecasting/actions/workflows/ci.yml)
+
 Professional portfolio project for FMCG demand forecasting, warehouse volume planning, and AI-assisted analytics. The system reads sales data, validates data quality, builds leakage-safe forecasting features, trains weekly demand models, evaluates model performance, and generates business-facing markdown reports.
 
 The project is intentionally runnable without private data. A synthetic sample dataset is included for demo purposes, while raw business data, processed data, model binaries, and generated reports are ignored by Git.
