@@ -20,6 +20,18 @@ validation:
   forecast_horizon_weeks: 1
   walk_forward_folds: 4
 
+features:
+  lag_weeks:
+    - 1
+    - 2
+    - 4
+    - 8
+    - 12
+  rolling_windows:
+    - 4
+    - 8
+    - 12
+
 model:
   objective: regression
   n_estimators: 450

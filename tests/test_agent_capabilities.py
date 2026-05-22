@@ -153,6 +153,66 @@ def test_default_sample_config_has_enough_history_for_model_frames():
         assert not frame[frame["week_start"] >= split].empty
 
 
+def test_forecasting_features_respect_horizon_safe_lags():
+    from src.features import make_model_frame
+
+    weekly = pd.DataFrame(
+        {
+            "week_start": pd.date_range("2024-01-01", periods=40, freq="W-MON"),
+            "category": "DRY",
+            "brand": "A",
+            "whseid": "WH1",
+            "total_qty": range(100, 140),
+            "total_cbm": range(10, 50),
+        }
+    )
+    configured_lags = [1, 2, 4, 8, 12]
+    for horizon in [1, 2, 4]:
+        frame = make_model_frame(
+            weekly,
+            target_col="total_qty",
+            forecast_horizon_weeks=horizon,
+            lag_weeks=configured_lags,
+            rolling_windows=[4],
+        )
+        lag_columns = [
+            column
+            for column in frame.columns
+            if column.startswith("total_qty_lag_") and "diff" not in column and "pct" not in column
+        ]
+        assert lag_columns
+        assert all(int(column.rsplit("_", 1)[-1]) >= horizon for column in lag_columns)
+        assert f"total_qty_lag_{horizon}" in frame.columns
+
+
+def test_rolling_features_shift_by_forecast_horizon():
+    from src.features import add_lag_features
+
+    weekly = pd.DataFrame(
+        {
+            "week_start": pd.date_range("2024-01-01", periods=8, freq="W-MON"),
+            "category": "DRY",
+            "brand": "A",
+            "whseid": "WH1",
+            "total_qty": range(10, 18),
+            "total_cbm": range(1, 9),
+        }
+    )
+    featured = add_lag_features(
+        weekly,
+        target_col="total_qty",
+        forecast_horizon_weeks=2,
+        lag_weeks=[1, 2, 4],
+        rolling_windows=[2],
+    )
+    expected = weekly["total_qty"].shift(2).rolling(2).mean()
+    pd.testing.assert_series_equal(
+        featured["total_qty_rolling_mean_2"].reset_index(drop=True),
+        expected.reset_index(drop=True),
+        check_names=False,
+    )
+
+
 def test_agent_generates_dataset_summary_and_actions():
     config = load_config("configs/default.yaml")
     agent = ForecastingAgent(config)

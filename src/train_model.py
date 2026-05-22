@@ -128,8 +128,16 @@ def save_breakdowns(output: pd.DataFrame, target_col: str, reports_dir: Path) ->
 
 
 def train_for_target(weekly: pd.DataFrame, target_col: str, config: dict) -> dict:
-    LOGGER.info("Training one-week-ahead LightGBM forecast for %s", target_col)
-    model_frame = make_model_frame(weekly, target_col=target_col)
+    horizon = int(config["validation"].get("forecast_horizon_weeks", 1))
+    feature_config = config.get("features", {})
+    LOGGER.info("Training %s-week-ahead LightGBM forecast for %s", horizon, target_col)
+    model_frame = make_model_frame(
+        weekly,
+        target_col=target_col,
+        forecast_horizon_weeks=horizon,
+        lag_weeks=feature_config.get("lag_weeks"),
+        rolling_windows=feature_config.get("rolling_windows"),
+    )
     split_date = pd.Timestamp(config["validation"]["test_start_date"])
     train, test = split_train_test(model_frame, split_date)
     feature_cols = get_feature_columns(model_frame)
@@ -145,7 +153,8 @@ def train_for_target(weekly: pd.DataFrame, target_col: str, config: dict) -> dic
             "train_rows": int(len(train)),
             "test_rows": int(len(test)),
             "split_date": str(split_date.date()),
-            "forecast_horizon": "one-week-ahead using historical lag features",
+            "forecast_horizon_weeks": horizon,
+            "forecast_horizon": f"{horizon}-week-ahead using historical lag features",
         }
     )
 
