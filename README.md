@@ -26,7 +26,7 @@ The agent layer turns a standard forecasting workflow into an analyst-style syst
 - LightGBM forecasting models for quantity and CBM.
 - Time-based train/test split and walk-forward validation.
 - Metrics output with MAE, RMSE, WMAPE, and forecast bias.
-- AI analyst layer with deterministic mock LLM support and optional OpenAI adapter.
+- AI analyst layer with deterministic mock LLM support and optional external LLM adapter.
 - FastAPI backend with PostgreSQL run persistence.
 - Markdown report generation for portfolio and stakeholder review.
 - CLI and one-command demo runner.
@@ -195,7 +195,7 @@ The agent module lives in `src/agent/` and exposes:
 - `suggest_next_actions()`: recommends follow-up actions.
 - `generate_markdown_report()`: writes a stakeholder-ready markdown report.
 
-The default `MockLLM` is deterministic and works offline, making the project testable and safe for GitHub. `OpenAILLM` is included as an optional adapter for real LLM integration when `OPENAI_API_KEY` is configured.
+The default `MockLLM` is deterministic and works offline, making the project testable and safe for GitHub. `ExternalLLM` is an optional chat-completions-compatible adapter for real LLM integration when `LLM_API_KEY`, `LLM_MODEL`, and optionally `LLM_BASE_URL` are configured. This lets users plug in their preferred compatible provider without changing application code.
 
 ## Data Quality Checks
 

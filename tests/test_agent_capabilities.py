@@ -3,6 +3,8 @@ from pathlib import Path
 import pandas as pd
 
 from src.agent.forecasting_agent import ForecastingAgent
+from src.agent.llm_client import ExternalLLM
+from src.agent.mock_llm import MockLLM
 from src.data.quality import (
     QualityConfig,
     analyze_data_quality,
@@ -215,7 +217,7 @@ def test_rolling_features_shift_by_forecast_horizon():
 
 def test_agent_generates_dataset_summary_and_actions():
     config = load_config("configs/default.yaml")
-    agent = ForecastingAgent(config)
+    agent = ForecastingAgent(config, llm=MockLLM())
     df = pd.DataFrame(
         {
             "ship_date": ["2023-01-02", "2023-01-09"],
@@ -230,3 +232,25 @@ def test_agent_generates_dataset_summary_and_actions():
     actions = agent.suggest_next_actions(quality)
     assert summary["rows"] == 2
     assert actions
+
+
+def test_agent_uses_external_adapter_when_api_key_is_configured(monkeypatch):
+    monkeypatch.setenv("LLM_PROVIDER", "custom")
+    monkeypatch.setenv("LLM_API_KEY", "test-key")
+    monkeypatch.setenv("LLM_MODEL", "provider-model")
+    monkeypatch.setenv("LLM_BASE_URL", "https://provider.example/v1/")
+
+    agent = ForecastingAgent({})
+
+    assert isinstance(agent.llm, ExternalLLM)
+    assert agent.llm.model == "provider-model"
+    assert agent.llm.base_url == "https://provider.example/v1/"
+
+
+def test_agent_uses_mock_llm_without_api_key(monkeypatch):
+    monkeypatch.setenv("LLM_PROVIDER", "mock")
+    monkeypatch.delenv("LLM_API_KEY", raising=False)
+
+    agent = ForecastingAgent({})
+
+    assert isinstance(agent.llm, MockLLM)

@@ -73,7 +73,7 @@ def generate_markdown_report(
             "",
             "## Limitations",
             "",
-            "- Mock LLM output is deterministic unless OpenAI integration is configured.",
+            "- Mock LLM output is deterministic unless an external LLM provider is configured.",
             "- Forecast quality depends on historical data coverage and stable demand patterns.",
             "- Promotion, price, stockout, and customer signals are not included by default.",
             "",
