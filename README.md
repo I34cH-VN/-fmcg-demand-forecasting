@@ -182,6 +182,8 @@ http://localhost:8000
 
 PostgreSQL data is stored in the `postgres_data` Docker volume. Generated project outputs are mounted into `outputs/`, `reports/`, `models/`, and `data/processed/`.
 
+The API service waits for the PostgreSQL healthcheck to pass before running `scripts/init_db.py` and starting Uvicorn, so database initialization does not race container startup.
+
 ## AI Agent Capabilities
 
 The agent module lives in `src/agent/` and exposes:
