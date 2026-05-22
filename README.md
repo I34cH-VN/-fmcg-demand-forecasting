@@ -1,78 +1,142 @@
-# FMCG Demand Forecasting & Warehouse Volume Planning
+# AI Data Analyst / Demand Forecasting Agent
 
-Industry-style portfolio project for weekly FMCG demand forecasting and warehouse/logistics volume planning. The project uses shipment history to forecast both quantity and CBM so supply chain planners can identify high-demand weeks, warehouse load, and forecast accuracy by business segment.
+Professional portfolio project for FMCG demand forecasting, warehouse volume planning, and AI-assisted analytics. The system reads sales data, validates data quality, builds leakage-safe forecasting features, trains weekly demand models, evaluates model performance, and generates business-facing markdown reports.
 
-The project has been upgraded into an **AI Data Analyst / Forecasting Agent**: a deterministic, testable agent layer can inspect sales data, run data quality checks, flag leakage/anomaly risks, train/evaluate forecasts, generate business insights, and write markdown reports.
+The project is intentionally runnable without private data. A synthetic sample dataset is included for demo purposes, while raw business data, processed data, model binaries, and generated reports are ignored by Git.
 
-## Business Problem
+## Problem Statement
 
-FMCG manufacturers need weekly visibility into demand and warehouse volume to plan labor, storage, transport capacity, and peak-season execution. This project forecasts:
+Supply chain and commercial planning teams need reliable weekly visibility into product demand and warehouse volume. Late or inaccurate demand signals create labor planning issues, storage bottlenecks, transport inefficiency, and poor peak-season execution.
+
+This project forecasts:
 
 - `total_qty`: weekly shipment quantity.
 - `total_cbm`: weekly warehouse/logistics volume.
 
-The dashboard turns model output into a planning view: forecast QTY, forecast CBM, peak week, forecast bias, WMAPE by brand, CBM by warehouse, and weekly forecast plan.
+The agent layer turns a standard forecasting workflow into an analyst-style system that can inspect the dataset, detect quality and leakage risks, summarize model results, and produce a report that a business stakeholder can read.
 
-## Dashboard Preview
+## Features
 
-![Dashboard preview](docs/images/dashboard_overview.png)
+- CSV sales data ingestion and cleaning.
+- Monday-start weekly aggregation by `category`, `brand`, and `whseid`.
+- Data quality checks for missing values, duplicates, invalid dates, date gaps, negative values, outliers, leakage risk, and weekly date alignment.
+- Leakage-safe calendar, Vietnam holiday, lag, rolling mean, lag-diff, and lag-pct-change features.
+- LightGBM forecasting models for quantity and CBM.
+- Time-based train/test split and walk-forward validation.
+- Metrics output with MAE, RMSE, WMAPE, and forecast bias.
+- AI analyst layer with deterministic mock LLM support and optional OpenAI adapter.
+- Markdown report generation for portfolio and stakeholder review.
+- CLI and one-command demo runner.
+- Streamlit dashboard for planning views.
 
-## Dataset Fields
-
-Raw CSV files are expected in `data/raw/` and contain:
-
-- `ACTUALSHIPDATE`: shipment date.
-- `CATEGORY`: product category.
-- `WHSEID`: warehouse identifier.
-- `BRAND`: product brand.
-- `Total QTY`: shipped quantity.
-- `Total CBM`: shipment volume.
-- `Week`, `Day`: optional calendar fields from the source system.
-
-Raw data, processed data, models, and report outputs are excluded from Git to avoid exposing private business data.
-
-A small synthetic sample is included at `data/sample/synthetic_sales.csv` for structure reference only. It is not used to claim model performance.
-
-## Architecture Diagram
+## Architecture
 
 ```mermaid
 flowchart LR
-    A["Raw shipment CSVs"] --> B["Preprocess and validation"]
-    B --> C["Data quality and leakage checks"]
-    C --> D["Monday-start weekly demand"]
-    D --> E["Calendar, holiday, lag and rolling features"]
-    E --> F["LightGBM QTY and CBM models"]
-    F --> G["Metrics and forecast outputs"]
-    G --> H["AI agent insights and markdown report"]
-    G --> I["Streamlit planning dashboard"]
+    A["Sales CSV"] --> B["Load and clean"]
+    B --> C["Data quality checks"]
+    C --> D["Weekly aggregation"]
+    D --> E["Forecast features"]
+    E --> F["Train LightGBM models"]
+    F --> G["Evaluate metrics"]
+    G --> H["AI analyst insights"]
+    H --> I["Markdown report"]
+    G --> J["Dashboard outputs"]
 ```
 
 Text view:
 
 ```text
-sales data -> quality checks -> weekly features -> train/evaluate -> insights -> reports/API-style CLI
+sales data -> quality checks -> weekly features -> train/evaluate -> insights -> reports/dashboard
 ```
 
-## Dashboard Features
+## Quick Demo
 
-- Forecast QTY and CBM KPI cards.
-- Forecast bias and WMAPE warning.
-- CBM peak alert with configurable weekly capacity threshold.
-- High-uncertainty brand segments based on WMAPE.
-- Actual vs forecast chart, CBM by warehouse, and weekly forecast plan.
+Install dependencies:
 
-## AI Agent Features
+```powershell
+pip install -r requirements.txt
+```
 
-- `analyze_dataset()` summarizes rows, columns, date range, and target volume.
-- `check_data_quality()` checks missing values, duplicates, invalid dates, date gaps, negative sales, outliers, leakage risk, and Monday week starts.
-- `explain_forecast_results()` translates metrics into business-facing language.
-- `generate_business_insights()` creates concise operational insights.
-- `suggest_next_actions()` recommends follow-up work.
-- `generate_markdown_report()` writes a portfolio-ready report to `outputs/reports/`.
+Run the full portfolio demo:
 
-The default agent uses `MockLLM`, so it runs offline and is stable in tests. `OpenAILLM` is available as an optional adapter when `openai` and `OPENAI_API_KEY` are configured.
+```powershell
+python scripts/run_demo.py
+```
 
-## Project Architecture
+The demo runs `analyze -> train -> report` using `configs/default.yaml` and prints:
+
+```text
+outputs/data_quality_report.json
+reports/metrics.json
+outputs/reports/forecast_report.md
+```
+
+## CLI Commands
+
+Run each pipeline stage independently:
+
+```powershell
+python -m src.cli analyze --config configs/default.yaml
+python -m src.cli train --config configs/default.yaml
+python -m src.cli report --config configs/default.yaml
+```
+
+Legacy script entrypoints are still available:
+
+```powershell
+python src/preprocess.py
+python src/train_model.py
+python src/make_figures.py
+streamlit run app/dashboard.py
+```
+
+Run tests:
+
+```powershell
+pytest -q
+```
+
+## AI Agent Capabilities
+
+The agent module lives in `src/agent/` and exposes:
+
+- `analyze_dataset()`: summarizes rows, columns, date range, and target volume.
+- `check_data_quality()`: returns structured quality results.
+- `explain_forecast_results()`: converts forecast metrics into business language.
+- `generate_business_insights()`: creates concise operational insights.
+- `suggest_next_actions()`: recommends follow-up actions.
+- `generate_markdown_report()`: writes a stakeholder-ready markdown report.
+
+The default `MockLLM` is deterministic and works offline, making the project testable and safe for GitHub. `OpenAILLM` is included as an optional adapter for real LLM integration when `OPENAI_API_KEY` is configured.
+
+## Data Quality Checks
+
+The quality layer in `src/data/quality.py` reports:
+
+- Missing values.
+- Duplicate rows.
+- Invalid dates.
+- Date gaps by configured group columns.
+- Negative sales/quantity values.
+- IQR-based outliers.
+- Train/test leakage risk.
+- Monday alignment for `week_start`.
+
+Outputs are available as JSON and markdown-friendly summaries.
+
+## Metrics
+
+The pipeline reports:
+
+- **MAE**: mean absolute error.
+- **RMSE**: root mean squared error.
+- **WMAPE**: weighted mean absolute percentage error.
+- **Forecast Bias**: `(predicted_sum - actual_sum) / actual_sum`.
+
+WMAPE and bias are emphasized because they are easy for supply chain teams to interpret during planning reviews.
+
+## Project Structure
 
 ```text
 demand_forecast/
@@ -88,10 +152,13 @@ demand_forecast/
 |-- docs/
 |   `-- assumptions.md
 |-- models/
+|-- notebooks/
 |-- outputs/
 |   `-- reports/
 |-- reports/
 |   `-- figures/
+|-- scripts/
+|   `-- run_demo.py
 |-- src/
 |   |-- agent/
 |   |-- data/
@@ -102,119 +169,17 @@ demand_forecast/
 |   |-- cli.py
 |   |-- evaluate.py
 |   |-- features.py
-|   |-- holidays.py
-|   |-- make_figures.py
 |   |-- preprocess.py
 |   |-- train_model.py
 |   `-- validation.py
 |-- tests/
 |   |-- test_agent_capabilities.py
 |   `-- test_pipeline.py
-|-- config.yaml
 |-- .env.example
+|-- config.yaml
+|-- pytest.ini
 |-- requirements.txt
 `-- README.md
-```
-
-## Methodology
-
-1. Load yearly CSV files from `data/raw/`.
-2. Validate required columns and date parsability.
-3. Clean shipment date, category, brand, warehouse, QTY, and CBM fields.
-4. Drop rows with missing critical values and remove duplicate business-key rows.
-5. Aggregate daily shipments into Monday-start weekly series by `category + brand + whseid`.
-6. Create leakage-safe calendar, Vietnam holiday, lag, rolling mean, lag-diff, and lag-pct-change features.
-7. Train LightGBM global regression models for `total_qty` and `total_cbm`.
-8. Evaluate on a time-based holdout and walk-forward validation.
-9. Publish metrics, segment breakdowns, predictions, models, and Streamlit dashboard.
-
-## Forecast Horizon
-
-The current model is a **one-week-ahead forecast**. Lag and rolling features use actual historical values available before the forecast week. It is not yet a recursive multi-week forecast engine.
-
-## Leakage Handling
-
-The original leakage-prone current-period features were removed:
-
-- `total_qty_diff_1`
-- `total_qty_pct_change_1`
-
-The replacement features are shifted into the past:
-
-- `total_qty_lag_diff_1 = lag_1 - lag_2`
-- `total_qty_lag_pct_change_1 = (lag_1 - lag_2) / lag_2`
-
-The same logic is applied to `total_cbm`. This prevents the model from reconstructing the current target from current-period differences.
-
-## Validation Strategy
-
-- Time-based test split: configured in `configs/default.yaml` or `config.yaml` with `test_start_date`.
-- Walk-forward validation: simple rolling cutoffs on the training period.
-- Segment metrics are generated by brand, category, warehouse, and peak/non-peak season.
-
-## Metrics
-
-The pipeline reports:
-
-- MAE
-- RMSE
-- WMAPE
-- Forecast Bias: `(predicted_sum - actual_sum) / actual_sum`
-
-WMAPE and bias are emphasized because they are interpretable for supply chain planning.
-
-## How to Run
-
-Install dependencies:
-
-```powershell
-pip install -r requirements.txt
-```
-
-Run the agent CLI with the sample config:
-
-```powershell
-python -m src.cli analyze --config configs/default.yaml
-python -m src.cli train --config configs/default.yaml
-python -m src.cli report --config configs/default.yaml
-```
-
-Run preprocessing:
-
-```powershell
-python src/preprocess.py
-```
-
-Train and evaluate models:
-
-```powershell
-python src/train_model.py
-```
-
-Generate report figures:
-
-```powershell
-python src/make_figures.py
-```
-
-Run tests:
-
-```powershell
-python -m pytest -q -p no:cacheprovider
-```
-
-Start dashboard:
-
-```powershell
-streamlit run app/dashboard.py
-```
-
-## Sample CLI Output
-
-```text
-Saved analysis report to outputs/data_quality_report.json
-Saved metrics to reports/metrics.json
-Saved markdown report to outputs/reports/forecast_report.md
 ```
 
 ## Main Outputs
@@ -233,6 +198,8 @@ Saved markdown report to outputs/reports/forecast_report.md
 - `outputs/data_quality_report.json`
 - `outputs/reports/forecast_report.md`
 
+Generated outputs, model files, cache files, and private raw data are excluded from Git.
+
 ## Configuration
 
 `configs/default.yaml` controls:
@@ -243,22 +210,38 @@ Saved markdown report to outputs/reports/forecast_report.md
 - model hyperparameters
 - output and report paths
 
-The default config uses `data/sample/synthetic_sales.csv` so the project can be demonstrated without private data. See `docs/assumptions.md` for assumptions and production notes.
+The default config uses `data/sample/synthetic_sales.csv` so the repository can be demonstrated without private data. See `docs/assumptions.md` for implementation assumptions.
+
+## Dashboard
+
+The Streamlit dashboard provides:
+
+- Forecast QTY and CBM KPI cards.
+- Forecast bias and WMAPE status.
+- CBM peak alert with configurable capacity threshold.
+- High-uncertainty brand segments.
+- Actual vs forecast chart, CBM by warehouse, and weekly forecast plan.
+
+```powershell
+streamlit run app/dashboard.py
+```
 
 ## Limitations
 
-- This is an industry-style portfolio project, not a full production enterprise system.
-- The forecast is one-week-ahead, not full multi-week capacity simulation.
+- This is a portfolio-grade system, not a fully managed production platform.
+- Forecasting is one-week-ahead, not a full recursive multi-horizon planning engine.
 - Holiday dates are manually maintained for 2023-2025.
-- The model does not include price, promotion, stockout, customer/channel, SKU-level hierarchy, or warehouse capacity constraints.
-- There is no orchestration layer, model registry, drift monitoring, or automated retraining yet.
-- The AI layer is deterministic by default and does not call an external LLM unless the optional OpenAI adapter is wired in.
+- The sample dataset is synthetic and should not be used to claim real-world model performance.
+- Price, promotion, stockout, customer/channel, SKU hierarchy, and warehouse capacity constraints are not included by default.
+- There is no model registry, drift monitoring, scheduled retraining, or orchestration layer yet.
+- The AI layer uses deterministic mock output unless an external LLM adapter is configured.
 
-## Next Improvements
+## Future Work
 
-- Add recursive/direct multi-horizon forecasting.
-- Add promotion, price, stockout, and customer/channel features.
-- Add data quality reports with Pandera or Great Expectations.
+- Add direct or recursive multi-horizon forecasting.
+- Add promotion, price, stockout, customer/channel, and SKU hierarchy features.
 - Add MLflow or another model registry.
-- Add capacity thresholds and overload alerts in the dashboard.
-- Add scheduled retraining with Airflow or Prefect.
+- Add drift monitoring and scheduled retraining with Airflow or Prefect.
+- Add Great Expectations or Pandera contracts for stronger data validation.
+- Add richer report sections for segment-level root cause analysis.
+- Add CI with linting, type checking, tests, and artifact validation.
