@@ -2,6 +2,8 @@
 
 Industry-style portfolio project for weekly FMCG demand forecasting and warehouse/logistics volume planning. The project uses shipment history to forecast both quantity and CBM so supply chain planners can identify high-demand weeks, warehouse load, and forecast accuracy by business segment.
 
+The project has been upgraded into an **AI Data Analyst / Forecasting Agent**: a deterministic, testable agent layer can inspect sales data, run data quality checks, flag leakage/anomaly risks, train/evaluate forecasts, generate business insights, and write markdown reports.
+
 ## Business Problem
 
 FMCG manufacturers need weekly visibility into demand and warehouse volume to plan labor, storage, transport capacity, and peak-season execution. This project forecasts:
@@ -36,13 +38,19 @@ A small synthetic sample is included at `data/sample/synthetic_sales.csv` for st
 ```mermaid
 flowchart LR
     A["Raw shipment CSVs"] --> B["Preprocess and validation"]
-    B --> C["Monday-start weekly demand"]
-    C --> D["Calendar, holiday, lag and rolling features"]
-    D --> E["LightGBM QTY model"]
-    D --> F["LightGBM CBM model"]
-    E --> G["Predictions and metrics"]
-    F --> G
-    G --> H["Streamlit planning dashboard"]
+    B --> C["Data quality and leakage checks"]
+    C --> D["Monday-start weekly demand"]
+    D --> E["Calendar, holiday, lag and rolling features"]
+    E --> F["LightGBM QTY and CBM models"]
+    F --> G["Metrics and forecast outputs"]
+    G --> H["AI agent insights and markdown report"]
+    G --> I["Streamlit planning dashboard"]
+```
+
+Text view:
+
+```text
+sales data -> quality checks -> weekly features -> train/evaluate -> insights -> reports/API-style CLI
 ```
 
 ## Dashboard Features
@@ -53,6 +61,17 @@ flowchart LR
 - High-uncertainty brand segments based on WMAPE.
 - Actual vs forecast chart, CBM by warehouse, and weekly forecast plan.
 
+## AI Agent Features
+
+- `analyze_dataset()` summarizes rows, columns, date range, and target volume.
+- `check_data_quality()` checks missing values, duplicates, invalid dates, date gaps, negative sales, outliers, leakage risk, and Monday week starts.
+- `explain_forecast_results()` translates metrics into business-facing language.
+- `generate_business_insights()` creates concise operational insights.
+- `suggest_next_actions()` recommends follow-up work.
+- `generate_markdown_report()` writes a portfolio-ready report to `outputs/reports/`.
+
+The default agent uses `MockLLM`, so it runs offline and is stable in tests. `OpenAILLM` is available as an optional adapter when `openai` and `OPENAI_API_KEY` are configured.
+
 ## Project Architecture
 
 ```text
@@ -60,13 +79,27 @@ demand_forecast/
 |-- app/
 |   |-- dashboard.py
 |   `-- dashboard_utils.py
+|-- configs/
+|   `-- default.yaml
 |-- data/
 |   |-- raw/
+|   |-- sample/
 |   `-- processed/
+|-- docs/
+|   `-- assumptions.md
 |-- models/
+|-- outputs/
+|   `-- reports/
 |-- reports/
 |   `-- figures/
 |-- src/
+|   |-- agent/
+|   |-- data/
+|   |-- evaluation/
+|   |-- models/
+|   |-- reports/
+|   |-- utils/
+|   |-- cli.py
 |   |-- evaluate.py
 |   |-- features.py
 |   |-- holidays.py
@@ -77,6 +110,7 @@ demand_forecast/
 |-- tests/
 |   `-- test_pipeline.py
 |-- config.yaml
+|-- .env.example
 |-- requirements.txt
 `-- README.md
 ```
@@ -136,6 +170,14 @@ Install dependencies:
 pip install -r requirements.txt
 ```
 
+Run the agent CLI with the sample config:
+
+```powershell
+python -m src.cli analyze --config configs/default.yaml
+python -m src.cli train --config configs/default.yaml
+python -m src.cli report --config configs/default.yaml
+```
+
 Run preprocessing:
 
 ```powershell
@@ -166,6 +208,14 @@ Start dashboard:
 streamlit run app/dashboard.py
 ```
 
+## Sample CLI Output
+
+```text
+Saved analysis report to outputs/data_quality_report.json
+Saved metrics to reports/metrics.json
+Saved markdown report to outputs/reports/forecast_report.md
+```
+
 ## Main Outputs
 
 - `data/processed/sales_cleaned.csv`
@@ -179,6 +229,20 @@ streamlit run app/dashboard.py
 - `reports/metrics.json`
 - `reports/metrics_*_by_*.csv`
 - `reports/walk_forward_*.csv`
+- `outputs/data_quality_report.json`
+- `outputs/reports/forecast_report.md`
+
+## Configuration
+
+`configs/default.yaml` controls:
+
+- input path
+- date, week start, target, and grouping columns
+- forecast horizon and test split date
+- model hyperparameters
+- output and report paths
+
+The default config uses `data/sample/synthetic_sales.csv` so the project can be demonstrated without private data. See `docs/assumptions.md` for assumptions and production notes.
 
 ## Limitations
 
@@ -187,6 +251,7 @@ streamlit run app/dashboard.py
 - Holiday dates are manually maintained for 2023-2025.
 - The model does not include price, promotion, stockout, customer/channel, SKU-level hierarchy, or warehouse capacity constraints.
 - There is no orchestration layer, model registry, drift monitoring, or automated retraining yet.
+- The AI layer is deterministic by default and does not call an external LLM unless the optional OpenAI adapter is wired in.
 
 ## Next Improvements
 

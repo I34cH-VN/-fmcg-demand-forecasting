@@ -5,6 +5,7 @@ __pycache__/
 venv/
 env/
 .env
+.Rhistory
 
 data/processed/*.csv
 data/raw/*.csv
@@ -12,6 +13,10 @@ models/*.pkl
 reports/*.json
 reports/*.csv
 reports/figures/*.html
+outputs/
+*.joblib
+pytest-cache-files-*/
+.pytest_cache/
 
 .DS_Store
 Thumbs.db

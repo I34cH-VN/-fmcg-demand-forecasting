@@ -3,13 +3,22 @@ import logging
 
 import pandas as pd
 
-from validation import (
-    CLEAN_REQUIRED_COLUMNS,
-    RAW_REQUIRED_COLUMNS,
-    validate_clean_data,
-    validate_raw_data,
-    validate_weekly_data,
-)
+try:
+    from src.validation import (
+        CLEAN_REQUIRED_COLUMNS,
+        RAW_REQUIRED_COLUMNS,
+        validate_clean_data,
+        validate_raw_data,
+        validate_weekly_data,
+    )
+except ImportError:
+    from validation import (
+        CLEAN_REQUIRED_COLUMNS,
+        RAW_REQUIRED_COLUMNS,
+        validate_clean_data,
+        validate_raw_data,
+        validate_weekly_data,
+    )
 
 
 ROOT_DIR = Path(__file__).resolve().parents[1]

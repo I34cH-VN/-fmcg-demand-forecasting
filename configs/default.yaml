@@ -1,0 +1,39 @@
+paths:
+  raw_data: data/raw
+  processed_data: data/processed
+  models: models
+  reports: reports
+
+input:
+  path: data/sample/synthetic_sales.csv
+
+output:
+  path: outputs
+  reports_path: outputs/reports
+
+columns:
+  date: week_start
+  week_start: week_start
+  target: total_qty
+  id_columns:
+    - category
+    - brand
+    - whseid
+  target_columns:
+    - total_qty
+    - total_cbm
+
+validation:
+  test_start_date: "2023-05-01"
+  forecast_horizon_weeks: 1
+  walk_forward_folds: 4
+
+model:
+  objective: regression
+  n_estimators: 150
+  learning_rate: 0.04
+  num_leaves: 15
+  subsample: 0.9
+  colsample_bytree: 0.9
+  random_state: 42
+  verbosity: -1

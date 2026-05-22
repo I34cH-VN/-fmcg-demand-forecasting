@@ -13,9 +13,14 @@ from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder
 
-from evaluate import add_peak_season_label, build_breakdown_metrics, regression_metrics
-from features import ID_COLUMNS, get_feature_columns, make_model_frame
-from validation import validate_weekly_data
+try:
+    from src.evaluate import add_peak_season_label, build_breakdown_metrics, regression_metrics
+    from src.features import ID_COLUMNS, get_feature_columns, make_model_frame
+    from src.validation import validate_weekly_data
+except ImportError:
+    from evaluate import add_peak_season_label, build_breakdown_metrics, regression_metrics
+    from features import ID_COLUMNS, get_feature_columns, make_model_frame
+    from validation import validate_weekly_data
 
 
 ROOT_DIR = Path(__file__).resolve().parents[1]

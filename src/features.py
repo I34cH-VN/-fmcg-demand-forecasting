@@ -5,8 +5,12 @@ import logging
 import numpy as np
 import pandas as pd
 
-from holidays import add_vietnam_holiday_features
-from validation import validate_weekly_data
+try:
+    from src.holidays import add_vietnam_holiday_features
+    from src.validation import validate_weekly_data
+except ImportError:
+    from holidays import add_vietnam_holiday_features
+    from validation import validate_weekly_data
 
 
 LOGGER = logging.getLogger(__name__)
