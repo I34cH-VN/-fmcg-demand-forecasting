@@ -43,7 +43,9 @@ def run_training_pipeline(config: dict) -> dict:
     reports_dir.mkdir(parents=True, exist_ok=True)
 
     weekly_path = processed_dir / "weekly_sales.csv"
-    if weekly_path.exists():
+    if get_nested(config, ["input", "path"]):
+        weekly = prepare_weekly_data(config)
+    elif weekly_path.exists():
         weekly = pd.read_csv(weekly_path, parse_dates=["week_start"])
     else:
         weekly = prepare_weekly_data(config)

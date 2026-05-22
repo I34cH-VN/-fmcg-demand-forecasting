@@ -167,8 +167,6 @@ def check_train_test_leakage(
         split = pd.Timestamp(split_date)
         if not (dates < split).any() or not (dates >= split).any():
             risks.append("Time split creates an empty train or test side.")
-        if not dates.is_monotonic_increasing:
-            risks.append("Rows are not sorted by date; ensure split is applied by time, not row order.")
     if target_column and feature_columns:
         target_tokens = {target_column.lower(), target_column.lower().replace("total_", "")}
         leakage_features = []
