@@ -25,6 +25,7 @@ The agent layer turns a standard forecasting workflow into an analyst-style syst
 - Time-based train/test split and walk-forward validation.
 - Metrics output with MAE, RMSE, WMAPE, and forecast bias.
 - AI analyst layer with deterministic mock LLM support and optional OpenAI adapter.
+- FastAPI backend with PostgreSQL run persistence.
 - Markdown report generation for portfolio and stakeholder review.
 - CLI and one-command demo runner.
 - Streamlit dashboard for planning views.
@@ -97,6 +98,88 @@ Run tests:
 pytest -q
 ```
 
+## FastAPI Service
+
+The API layer wraps the same forecasting workflows as the CLI. It does not replace the CLI; both interfaces call the existing pipeline modules.
+
+Start the service locally:
+
+```powershell
+uvicorn src.api.app:app --reload
+```
+
+Initialize the database tables:
+
+```powershell
+python scripts/init_db.py
+```
+
+API endpoints:
+
+- `GET /health`
+- `POST /runs/analyze`
+- `POST /runs/train`
+- `POST /runs/report`
+- `GET /runs`
+- `GET /runs/{run_id}`
+- `GET /metrics/latest`
+
+Example requests:
+
+```powershell
+curl http://localhost:8000/health
+curl -X POST http://localhost:8000/runs/analyze -H "Content-Type: application/json" -d "{\"config_path\":\"configs/default.yaml\"}"
+curl -X POST http://localhost:8000/runs/train -H "Content-Type: application/json" -d "{\"config_path\":\"configs/default.yaml\"}"
+curl -X POST http://localhost:8000/runs/report -H "Content-Type: application/json" -d "{\"config_path\":\"configs/default.yaml\"}"
+curl http://localhost:8000/runs
+curl http://localhost:8000/metrics/latest
+```
+
+## Local PostgreSQL Setup
+
+Set the database URL in your shell or `.env` file:
+
+```powershell
+$env:DATABASE_URL="postgresql://user:password@localhost:5432/demand_forecast"
+```
+
+Then create the table schema:
+
+```powershell
+python scripts/init_db.py
+```
+
+The run table stores:
+
+- `run_id`
+- `run_type`
+- `status`
+- `started_at`
+- `finished_at`
+- `config_path`
+- `metrics_json`
+- `data_quality_json`
+- `report_path`
+- `error_message`
+
+If `DATABASE_URL` is not set, the service falls back to a local SQLite database at `outputs/runs.sqlite3` for lightweight development.
+
+## Docker Compose Setup
+
+Run PostgreSQL and the API together:
+
+```powershell
+docker compose up --build
+```
+
+The API will be available at:
+
+```text
+http://localhost:8000
+```
+
+PostgreSQL data is stored in the `postgres_data` Docker volume. Generated project outputs are mounted into `outputs/`, `reports/`, `models/`, and `data/processed/`.
+
 ## AI Agent Capabilities
 
 The agent module lives in `src/agent/` and exposes:
@@ -158,13 +241,16 @@ demand_forecast/
 |-- reports/
 |   `-- figures/
 |-- scripts/
+|   |-- init_db.py
 |   `-- run_demo.py
 |-- src/
 |   |-- agent/
+|   |-- api/
 |   |-- data/
 |   |-- evaluation/
 |   |-- models/
 |   |-- reports/
+|   |-- storage/
 |   |-- utils/
 |   |-- cli.py
 |   |-- evaluate.py
@@ -177,6 +263,8 @@ demand_forecast/
 |   `-- test_pipeline.py
 |-- .env.example
 |-- config.yaml
+|-- docker-compose.yml
+|-- Dockerfile
 |-- pytest.ini
 |-- requirements.txt
 `-- README.md
